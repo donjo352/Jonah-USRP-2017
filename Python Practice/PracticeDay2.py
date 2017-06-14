@@ -15,26 +15,26 @@ import numpy as np
 # print(prob1b)
 
 # Problem 2
-# prob2 = np.zeros((16,64), dtype = np.int16)
-# colsize = len(prob2)
-# rowsize = len(prob2[1])
+prob2 = np.zeros((16,64), dtype = np.int16)
+colsize = len(prob2)
+rowsize = len(prob2[1])
 
-# def Fib(n):
-# 	total = 0
-# 	if n==1:
-# 		return total + 0
-# 	elif n==2:
-# 		return total + 1
-# 	else:
-# 		return total + Fib(n-1)+Fib(n-2)
-# fibseq = []
-# for i in range(1,17):
-# 	fibseq.append(Fib(i))
-# print(fibseq)
+def Fib(n):
+	total = 0
+	if n==1:
+		return total + 0
+	elif n==2:
+		return total + 1
+	else:
+		return total + Fib(n-1)+Fib(n-2)
+fibseq = []
+for i in range(1,17):
+	fibseq.append(Fib(i))
+print(fibseq)
 
-# for i in range(0, colsize):
-# 	for j in range(0, rowsize):
-# 		prob2[i][j] = fibseq[i]
-# print(prob2)
+for i in range(0, colsize):
+	for j in range(0, rowsize):
+		prob2[i][j] = fibseq[i]
+print(prob2)
 
 #Problem 3
