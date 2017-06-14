@@ -41,22 +41,30 @@ import numpy as np
 # unirandnums = np.random.random_integers(2, 16, 20)
 # boo = np.zeros((len(unirandnums)), dtype = bool)
 # for i in range(0, len(unirandnums)):
-# 	if unirandnums[i] >= 5 & unirandnums[i] <= 10 & (unirandnums[i]%2 == 1):
+	# if unirandnums[i] >= 5 & unirandnums[i] <= 10 & (unirandnums[i]%2 == 1):
 # 		# print(boo[i])
 # 		boo[i] = True
 # print(boo)
 
 #Problem 4
- import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt
 
- x = np.arange(0.,10.,0.1)
- y = np.arange(0.,10.,0.1)
- x,y = np.meshgrid(x,y)
- mean_xy = np.array([5.,4.])
- cov = np.array([[1.,1.],
-                 [1.,2.]])**2.
+# def gaussian2D(x, y, mean_xy, cov):
+# 	return np.exp((-1.0/2)*np.transpose(x - mean_xy)*(cov**-1.0)*(x - mean_xy))
 
- f = gaussian2D(x.ravel(), y.ravel(), mean_xy, cov)
- f.reshape(100,100)
+x = np.arange(0.,10.,0.1)
+y = np.arange(0.,10.,0.1)
+x,y = np.meshgrid(x,y)
+mean_xy = np.array([5.,4.])
+cov = np.array([[1.,1.],
+             [1.,2.]])**2.
+print(x.shape)
+print(y.shape)
+print(mean_xy.shape)
+print(cov.shape)
 
- plt.imshow(f.reshape(100,100))
+# f = gaussian2D(x.ravel(), y.ravel(), mean_xy, cov)
+# f.reshape(100,100)
+
+# plt.imshow(f.reshape(100,100))
+# plt.show()
