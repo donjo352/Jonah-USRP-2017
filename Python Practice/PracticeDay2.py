@@ -38,11 +38,12 @@ import numpy as np
 # print(prob2)
 
 #Problem 3
-unirandnums = np.random.random_integers(2, 16, 20)
-boo = np.zeros((1, len(unirandnums)), dtype = bool)
-for i in range(0, len(unirandnums)):
-	if unirandnums[i] >= 5 and unirandnums[i] <= 10 and (unirandnums[i]%2 == 1):
-		print(boo[i])
-		# boo[i] = True
-
+# unirandnums = np.random.random_integers(2, 16, 20)
+# boo = np.zeros((len(unirandnums)), dtype = bool)
+# for i in range(0, len(unirandnums)):
+# 	if unirandnums[i] >= 5 & unirandnums[i] <= 10 & (unirandnums[i]%2 == 1):
+# 		# print(boo[i])
+# 		boo[i] = True
 # print(boo)
+
+#Problem 4
