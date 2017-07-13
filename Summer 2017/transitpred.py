@@ -44,7 +44,7 @@ def Usage():
 
 # Class defining a transit event
 class TransitEvent:
-    def __init__(self, obj, prio, n, night, symbol, jdstart, ltstart, altstart, jdcent, ltcent, altcent, jdstop, ltstop, altstop, moonsep, futype):
+    def __init__(self, obj, prio, n, night, symbol, jdstart, ltstart, altstart, jdcent, ltcent, altcent, jdstop, ltstop, altstop, moonsep, futype, magv):
         self.obj = obj
         self.prio = prio
         self.n = n
@@ -61,13 +61,14 @@ class TransitEvent:
         self.altstop = altstop
         self.moonsep = moonsep
         self.futype = futype
+        self.magv = magv
     def __repr__(self):
         return repr((self.obj, self.prio, self.n, self.night, self.symbol,
                      self.jdstart, self.ltstart, self.altstart, self.jdcent,
                      self.ltcent, self.altcent, self.jdstop, self.ltstop,
-                     self.altstop, self.moonsep, self.futype))
+                     self.altstop, self.moonsep, self.futype, self.magv))
     def printvalues(self):
-        print "%s %s %d %s %5s %.17g %s %6.2f %.17g %s %6.2f %.17g %s %6.2f %7.2f %s" % (self.obj, self.prio, self.n, self.night, self.symbol, self.jdstart, self.ltstart, self.altstart, self.jdcent, self.ltcent, self.altcent, self.jdstop, self.ltstop, self.altstop, self.moonsep, self.futype)
+        print "%s %s %d %s %5s %.17g %s %6.2f %.17g %s %6.2f %.17g %s %6.2f %7.2f %s %5g" % (self.obj, self.prio, self.n, self.night, self.symbol, self.jdstart, self.ltstart, self.altstart, self.jdcent, self.ltcent, self.altcent, self.jdstop, self.ltstop, self.altstop, self.moonsep, self.futype, self.magv)
 
 # Class storing the parameters of a transit candidate
 class Star:
@@ -525,15 +526,15 @@ def QueryHATRED(obj):
     [dbuser, dbpwd] = getpasswdHATRED()
     db = MySQLdb.connect(host='hat.astro.princeton.edu',user=dbuser,passwd=dbpwd,db='HATRED')
     db.cur = db.cursor()
-    db.cur.execute('select HTRname, HTRra, HTRdec, HTRP, 2400000+HTRE+0.5*HTRP*HTRq, HTRq*0.5*HTRP, HTRTODO from HTR where HTRname=+"'+obj+'", HTRmagV')
+    db.cur.execute('select HTRname, HTRra, HTRdec, HTRP, 2400000+HTRE+0.5*HTRP*HTRq, HTRq*0.5*HTRP, HTRTODO, HTRmagV from HTR where HTRname=+"'+obj+'"')
     if int(db.cur.rowcount) < 1:
         sys.stderr.write(obj+" is not in the HATRED database. Skipping\n")
         exit(3)
     row = db.cur.fetchone()
     prio="..."
     futype = "pri"
-    if str(row[7]) != "None":
-        for ftmp in row[7].split(','):
+    if str(row[6]) != "None":
+        for ftmp in row[6].split(','):
             if ftmp.split(':')[0] == "FLWO12" and len(ftmp.split(':')) > 1:
                 prio = ftmp.split(':')[1]
                 break
@@ -562,11 +563,11 @@ def QueryHATRED(obj):
 		else:
 		    b2 = float(row2[3])
                 [Tcsec, HalfDursec] = SecondaryParams(h, k, b2, float(row[3]), float(row[4]), float(row[5]))
-                return ( row[1], row[2], row[3], Tcsec, HalfDursec, prio, futype, row[6] )
+                return ( row[1], row[2], row[3], Tcsec, HalfDursec, prio, futype, row[7] )
         # just increase the secondary time by 0.5*P
         Tcsec = float(row[4]) + 0.5*float(row[3])
-        return ( row[1], row[2], row[3], Tcsec, row[5], prio, futype, row[6])
-    vals = ( row[1], row[2], row[3], row[4], row[5], prio, futype, row[6] )
+        return ( row[1], row[2], row[3], Tcsec, row[5], prio, futype, row[7])
+    vals = ( row[1], row[2], row[3], row[4], row[5], prio, futype, row[7] )
     return vals
 
 # Look-up a candidate in the HATRED database
@@ -579,7 +580,7 @@ def QueryALLHATRED():
     [dbuser, dbpwd] = getpasswdHATRED()
     db = MySQLdb.connect(host='hat.astro.princeton.edu',user=dbuser,passwd=dbpwd,db='HATRED')
     db.cur = db.cursor()
-    db.cur.execute('select HTRname, HTRra, HTRdec, HTRP, 2400000+HTRE+0.5*HTRP*HTRq, HTRq*0.5*HTRP, HTRTODO from HTR where HTRTODO is not NULL, HTRmagV')
+    db.cur.execute('select HTRname, HTRra, HTRdec, HTRP, 2400000+HTRE+0.5*HTRP*HTRq, HTRq*0.5*HTRP, HTRTODO, HTRmagV from HTR where HTRTODO is not NULL')
     objects = []
     rows = db.cur.fetchall()
     futype = "pri"
@@ -588,7 +589,7 @@ def QueryALLHATRED():
         if str(row[3]) == "None" or str(row[4]) == "None" or str(row[5]) == "None":
             continue
         FUs = []
-        for ftmp in row[7].split(','):
+        for ftmp in row[6].split(','):
             if ftmp.split(':')[0] == "FLWO12" and len(ftmp.split(':')) > 1:
                 prio = ftmp.split(':')[1]
                 FUs.append(("pri",prio))
@@ -616,14 +617,14 @@ def QueryALLHATRED():
                         else:
                             b2 = float(row2[3])
                         [Tcsec, HalfDursec] = SecondaryParams(h, k, b2, float(row[3]), float(row[4]), float(row[5]))
-                        objects.append(Star(row[0], prio, float(row[1]), float(row[2]), float(row[3]), Tcsec, HalfDursec, futype, float(row[6])))
+                        objects.append(Star(row[0], prio, float(row[1]), float(row[2]), float(row[3]), Tcsec, HalfDursec, futype, float(row[7])))
                         dumcheck=1
             # just increase the secondary time by 0.5*P
                 if dumcheck == 0:
                     Tcsec = float(row[4]) + 0.5*float(row[3])
-                    objects.append(Star(row[0], prio, float(row[1]), float(row[2]), float(row[3]), Tcsec, float(row[5]), futype, float(row[6])))
+                    objects.append(Star(row[0], prio, float(row[1]), float(row[2]), float(row[3]), Tcsec, float(row[5]), futype, float(row[7])))
             else:
-                objects.append(Star(row[0], prio, float(row[1]), float(row[2]), float(row[3]), float(row[4]), float(row[5]), futype, float(row[6])))
+                objects.append(Star(row[0], prio, float(row[1]), float(row[2]), float(row[3]), float(row[4]), float(row[5]), futype, float(row[7])))
     return objects
 
 # Look-up a candidate in the HSCAND database
@@ -636,15 +637,15 @@ def QueryHSCAND(obj):
     [dbuser, dbpwd] = getpasswdHSCAND()
     db = MySQLdb.connect(host='hatsouth.astro.princeton.edu',user=dbuser,passwd=dbpwd,db='HSCAND')
     db.cur = db.cursor()
-    db.cur.execute('select HATSname, HATSra, HATSdec, HATSP, 2400000+HATSE+0.5*HATSP*HATSq, HATSq*0.5*HATSP, HATSTODO from HATS where HATSname=+"'+obj+'", HATSmagV')
+    db.cur.execute('select HATSname, HATSra, HATSdec, HATSP, 2400000+HATSE+0.5*HATSP*HATSq, HATSq*0.5*HATSP, HATSTODO, HATSmagV from HATS where HATSname=+"'+obj+'"')
     if int(db.cur.rowcount) < 1:
         sys.stderr.write(obj+" is not in the HSCAND database. Skipping\n")
         exit(3)
     row = db.cur.fetchone()
     prio="..."
     futype="pri"
-    if str(row[7]) != "None":
-	for ftmp in row[7].split(','):
+    if str(row[6]) != "None":
+	for ftmp in row[6].split(','):
             if ftmp.split(':')[0] == "PHFU" and len(ftmp.split(':')) > 1:
                 prio = ftmp.split(':')[1]
                 futype = "pri"
@@ -674,11 +675,11 @@ def QueryHSCAND(obj):
 		else:
 		    b2 = float(row2[3])
                 [Tcsec, HalfDursec] = SecondaryParams(h, k, b2, float(row[3]), float(row[4]), float(row[5]))
-                return ( row[1], row[2], row[3], Tcsec, HalfDursec, prio, futype, row[6] )
+                return ( row[1], row[2], row[3], Tcsec, HalfDursec, prio, futype, row[7] )
         # just increase the secondary time by 0.5*P
         Tcsec = float(row[4]) + 0.5*float(row[3])
-        return ( row[1], row[2], row[3], Tcsec, row[5], prio, futype, row[6])
-    vals = ( row[1], row[2], row[3], row[4], row[5], prio, futype, row[6] )
+        return ( row[1], row[2], row[3], Tcsec, row[5], prio, futype, row[7])
+    vals = ( row[1], row[2], row[3], row[4], row[5], prio, futype, row[7] )
     return vals
 
 # Look-up a candidate in the HSCAND database
@@ -691,14 +692,14 @@ def QueryALLHSCAND():
     [dbuser, dbpwd] = getpasswdHSCAND()
     db = MySQLdb.connect(host='hatsouth.astro.princeton.edu',user=dbuser,passwd=dbpwd,db='HSCAND')
     db.cur = db.cursor()
-    db.cur.execute('select HATSname, HATSra, HATSdec, HATSP, 2400000+HATSE+0.5*HATSP*HATSq, HATSq*0.5*HATSP, HATSTODO from HATS where HATSTODO is not NULL, HATSmagV')
+    db.cur.execute('select HATSname, HATSra, HATSdec, HATSP, 2400000+HATSE+0.5*HATSP*HATSq, HATSq*0.5*HATSP, HATSTODO, HATSmagV from HATS where HATSTODO is not NULL')
     objects = []
     rows = db.cur.fetchall()
     for row in rows:
         prio="..."
         futype="pri"
         FUs = []
-        for ftmp in row[7].split(','):
+        for ftmp in row[6].split(','):
             if ftmp.split(':')[0] == "PPHFU" and len(ftmp.split(':')) > 1:
                 prio = ftmp.split(':')[1]
                 FUs.append(("pri",prio))
@@ -740,19 +741,19 @@ def QueryALLHSCAND():
                         else:
                             b2 = float(row2[3])
                         [Tcsec, HalfDursec] = SecondaryParams(h, k, b2, float(row[3]), float(row[4]), float(row[5]))
-                        objects.append(Star(row[0], prio, float(row[1]), float(row[2]), float(row[3]), Tcsec, HalfDursec, futype, float(row[6])))
+                        objects.append(Star(row[0], prio, float(row[1]), float(row[2]), float(row[3]), Tcsec, HalfDursec, futype, float(row[7])))
                         dumcheck=1
                 if dumcheck == 0:
                     # just increase the secondary time by 0.5*P
                     Tcsec = float(row[4]) + 0.5*float(row[3])
-                    objects.append(Star(row[0], prio, float(row[1]), float(row[2]), float(row[3]), Tcsec, float(row[5]), futype, float(row[6])))
+                    objects.append(Star(row[0], prio, float(row[1]), float(row[2]), float(row[3]), Tcsec, float(row[5]), futype, float(row[7])))
             else:
-                objects.append(Star(row[0], prio, float(row[1]), float(row[2]), float(row[3]), float(row[4]), float(row[5]), futype, float(row[6])))
+                objects.append(Star(row[0], prio, float(row[1]), float(row[2]), float(row[3]), float(row[4]), float(row[5]), futype, float(row[7])))
     return objects
 
 # Look-up a candidate in the TEP database
 def QueryTEP(obj):
-    command = 'tepquery --id '+obj+' -p star_ra,star_dec,pl_period,pl_Tc,pl_T14'
+    command = 'tepquery --id '+obj+' -p star_ra,star_dec,pl_period,pl_Tc,pl_T14,star_magV'
     val=runcommand(command)
     if val == "":
         exit(3)
@@ -761,7 +762,7 @@ def QueryTEP(obj):
 
 # Look-up a candidate in the TEP database
 def QueryALLTEP():
-    command = 'tepquery --all -p pl_name,star_ra,star_dec,pl_period,pl_Tc,pl_T14'
+    command = 'tepquery --all -p pl_name,star_ra,star_dec,pl_period,pl_Tc,pl_T14,star_magV'
     objects = []
     val=runcommand(command)
     if val == "":
@@ -771,7 +772,10 @@ def QueryALLTEP():
             f2 = f.split()
             if str(f2[1]) == "None" or str(f2[2]) == "None" or str(f2[3]) == "None" or str(f2[4]) == "None" or str(f2[5]) == "None":
                 continue
-            objects.append(Star(f2[0], "...", float(f2[1]), float(f2[2]), float(f2[3]), float(f2[4]), 0.5*float(f2[5]), "pri"))
+            if str(f2[6]) == "None":
+                objects.append(Star(f2[0], "...", float(f2[1]), float(f2[2]), float(f2[3]), float(f2[4]), 0.5*float(f2[5]), "pri", 99.9)
+            else:
+                objects.append(Star(f2[0], "...", float(f2[1]), float(f2[2]), float(f2[3]), float(f2[4]), 0.5*float(f2[5]), "pri", float(f2[6])))
     return objects            
 
 # Class to hold the dialog for prompting the user for the DB uname/pwd
@@ -907,8 +911,9 @@ allHS=0
 allTEP=0
 TwiAlt=-12.0
 ObjAlt=30.0
+magv = "" 
 try:
-    opts, args = getopt.getopt(sys.argv[1:], "d:l:p:q:", ["start=", "stop=", "lon=", "lat=", "tz=", "obj=", "name=", "ra=", "dec=", "tc=", "secondary", "allHN", "allHS", "allTEP", "twialt=", "objalt="])
+    opts, args = getopt.getopt(sys.argv[1:], "d:l:p:q:", ["start=", "stop=", "lon=", "lat=", "tz=", "obj=", "name=", "ra=", "dec=", "tc=", "secondary", "allHN", "allHS", "allTEP", "twialt=", "objalt=", "magv="])
 
 except getopt.GetoptError:
     Usage()
@@ -953,6 +958,8 @@ for opt, arg in opts:
         Tc=arg
     elif opt == "-q":
         q=arg
+    elif opt == "--magv":
+        magv=arg
     elif opt == "--secondary":
         mode="sec"
 
@@ -1025,8 +1032,8 @@ if lon == "" and lat == "" and tz == "":
         Usage()
         sys.exit(2)
 
-if not (ra == "" and dec == "" and per == "" and Tc == "" and q == "") and \
-        not (ra != "" and dec != "" and per != "" and Tc != "" and q != ""):
+if not (ra == "" and dec == "" and per == "" and Tc == "" and q == "" and magv == "") and \
+        not (ra != "" and dec != "" and per != "" and Tc != "" and q != "" and magv != ""):
     Usage()
     sys.exit(2)
 
@@ -1049,7 +1056,7 @@ Objects = []
 # Get objects from the Database if requested:
 if name != "":
     HalfDuration = float(per)*0.5*float(q)
-    Objects.append(Star(name, "...", float(ra), float(dec), float(per), float(Tc), HalfDuration, "pri"))
+    Objects.append(Star(name, "...", float(ra), float(dec), float(per), float(Tc), HalfDuration, "pri", float(magv)))
 
 if obj != "":
     if not re.search('^HTR',obj) and not re.search('^HATS[0-9][0-9][0-9]\-[0-9][0-9][0-9]$',obj):
@@ -1063,7 +1070,8 @@ if obj != "":
         Tc = vals[3]
         halfdur = float(vals[4])*0.5
         prio = "..."
-        Objects.append(Star(obj, prio, float(ra), float(dec), float(per), float(Tc), float(halfdur), "pri"))
+        magv = vals[7]
+        Objects.append(Star(obj, prio, float(ra), float(dec), float(per), float(Tc), float(halfdur), "pri", float(magv)))
     elif re.search('^HTR',obj):
         vals = QueryHATRED(obj)
         ra = vals[0]
@@ -1073,7 +1081,8 @@ if obj != "":
         halfdur = float(vals[4])
         prio = vals[5]
         futype = vals[6]
-        Objects.append(Star(obj, prio, float(ra), float(dec), float(per), float(Tc), float(halfdur), futype))
+        magv = vals[7]
+        Objects.append(Star(obj, prio, float(ra), float(dec), float(per), float(Tc), float(halfdur), futype, float(magv)))
     elif re.search('^HATS[0-9][0-9][0-9]\-[0-9][0-9][0-9]$',obj):
         vals = QueryHSCAND(obj)
         ra = vals[0]
@@ -1083,7 +1092,8 @@ if obj != "":
         halfdur = float(vals[4])
         prio = vals[5]
         futype = vals[6]
-        Objects.append(Star(obj, prio, float(ra), float(dec), float(per), float(Tc), float(halfdur), futype))
+        magv = vals[7]
+        Objects.append(Star(obj, prio, float(ra), float(dec), float(per), float(Tc), float(halfdur), futype, float(magv)))
     else:
         sys.stderr.write("Unknown object: "+obj+"\n")
         exit(2)
