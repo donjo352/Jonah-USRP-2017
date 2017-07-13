@@ -3,6 +3,7 @@
 exec python $0 ${1+"$@"}
 """
 #"
+#TEST
 
 # This utility generates transit predictions for a given night or for
 # a range of nights, for a fixed site, and for a system with parameters
