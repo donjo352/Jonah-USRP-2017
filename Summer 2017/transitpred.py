@@ -313,7 +313,7 @@ def gettwilightJD(alt, nightyr, nightmo, nightday, lat, longit):
 # year, month, day are the dates to start and stop the check on
 # RA and Dec are in degrees, period and HalfDuration are in days.
 # Epoch is a JulianDate.
-def FindVisibleTransits(yearstart, monthstart, daystart, yearstop, monthstop, daystop, RA, Dec, Period, Epoch, HalfDuration, obslat, obslongit, obstz, twialt, objalt, objname, objprio, objfutype):
+def FindVisibleTransits(yearstart, monthstart, daystart, yearstop, monthstop, daystop, RA, Dec, Period, Epoch, HalfDuration, obslat, obslongit, obstz, twialt, objalt, objname, objprio, objfutype, magv):
     # First generate a list of all transit start, stop, and midpoint times
     # Within the given date range.
     [jd1, jd2] = gettwilightJD(twialt, yearstart, monthstart, daystart, obslat, obslongit)
@@ -426,7 +426,7 @@ def FindVisibleTransits(yearstart, monthstart, daystart, yearstop, monthstop, da
             ltcent = "%02d:%02d" % (hr, mi)
             ltstop = "%02d:%02d" % (hrsto, misto)
             if objfutype == "pri" or objfutype == "sec":
-                transits.append(TransitEvent(objname, objprio, math.floor((jd - Epoch + HalfDuration)/Period), night, flag, jdstart, ltstart, altstart, jd, ltcent, altcent, jdstop, ltstop, altstop, moonsep, objfutype))
+                transits.append(TransitEvent(objname, objprio, math.floor((jd - Epoch + HalfDuration)/Period), night, flag, jdstart, ltstart, altstart, jd, ltcent, altcent, jdstop, ltstop, altstop, moonsep, objfutype, magv))
             elif objfutype == "odd" or objfutype == "even":
                 objNtran = int(round((jd - Epoch)/Period)) % 2
                 if objNtran == 0 and objfutype == "even":
@@ -435,7 +435,7 @@ def FindVisibleTransits(yearstart, monthstart, daystart, yearstop, monthstop, da
                     priotoshow = objprio
                 else:
                     priotoshow = "..."
-                transits.append(TransitEvent(objname, priotoshow, math.floor((jd - Epoch + HalfDuration)/Period), night, flag, jdstart, ltstart, altstart, jd, ltcent, altcent, jdstop, ltstop, altstop, moonsep, objfutype))
+                transits.append(TransitEvent(objname, priotoshow, math.floor((jd - Epoch + HalfDuration)/Period), night, flag, jdstart, ltstart, altstart, jd, ltcent, altcent, jdstop, ltstop, altstop, moonsep, objfutype, magv))
     return transits
 
 # Run a shell command
@@ -773,7 +773,7 @@ def QueryALLTEP():
             if str(f2[1]) == "None" or str(f2[2]) == "None" or str(f2[3]) == "None" or str(f2[4]) == "None" or str(f2[5]) == "None":
                 continue
             if str(f2[6]) == "None":
-                objects.append(Star(f2[0], "...", float(f2[1]), float(f2[2]), float(f2[3]), float(f2[4]), 0.5*float(f2[5]), "pri", 99.9)
+                objects.append(Star(f2[0], "...", float(f2[1]), float(f2[2]), float(f2[3]), float(f2[4]), 0.5*float(f2[5]), "pri", 99.9))
             else:
                 objects.append(Star(f2[0], "...", float(f2[1]), float(f2[2]), float(f2[3]), float(f2[4]), 0.5*float(f2[5]), "pri", float(f2[6])))
     return objects            
@@ -1110,11 +1110,19 @@ if allTEP == 1:
         exit(3)
     Objects.extend(QueryALLTEP())
 
+# assign each object a priority based on magnitude, orbital period,
+#  visibility flag, altitude at mid-transit, and number of subsequent
+#  Bieryla nights
+def priority():
+    magnitude = vals[7]
+    return magnitude
+
 alltransits = []
 for st in Objects:
-    alltransits.extend(FindVisibleTransits(yrstart, mostart, daystart, yrstop, mostop, daystop, st.RA, st.Dec, st.P, st.Epoch, st.HalfDuration, float(lat), float(lon), float(tz), float(TwiAlt), float(ObjAlt), st.obj, st.prio, st.futype))
+    alltransits.extend(FindVisibleTransits(yrstart, mostart, daystart, yrstop, mostop, daystop, st.RA, st.Dec, st.P, st.Epoch, st.HalfDuration, float(lat), float(lon), float(tz), float(TwiAlt), float(ObjAlt), st.obj, st.prio, st.futype, st.magv))
 
 alltransits_sort = sorted(alltransits, key=lambda trans: trans.jdcent)
 
 for trans in alltransits_sort:
+    print(priority())
     trans.printvalues()
