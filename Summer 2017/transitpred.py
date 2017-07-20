@@ -310,10 +310,115 @@ def gettwilightJD(alt, nightyr, nightmo, nightday, lat, longit):
     
     return [jdeve, jdmorn]
 
+P_alt =[]
+P_mag = []
+P_flag = []
+P_objprio = []
+P_period = []
+P_dur = []
+Prios = []
+
+periods = []
+mags = []
+durs = []
+
+shallowmagmin = 14.948
+ptotal = 0.0
+
+#  assign each object a priority based on magnitude, orbital period,
+#  visibility flag, altitude at mid-transit, and number of subsequent
+#  Bieryla nights
+def pre_priority(flag, period, mag, altcent, objprio, HalfDuration):
+    P_alt.append(math.cos(math.radians(90 - altcent))) 
+
+    # global shallowmagmin    # Needed to modify global copy of shallowmagmin
+    global ptotal
+
+    # if mag > shallowmagmin:
+    #     shallowmagmin = mag
+    # mags.append(mag)
+
+    if flag == 'OIBEO':
+        P_flag.append(1.0)
+    elif flag == '-IBEO' or flag == 'OIBE-':
+        P_flag.append(0.75)
+    elif flag == 'OIB--' or flag == '--BEO':
+        P_flag.append(0.5)
+    elif flag == 'OI---' or flag == '-IBE-' or flag == '---EO':
+        P_flag.append(0.1)
+    else:
+        P_flag.append(0.0)
+
+    P_objprio.append(10.0/(2.0**int(objprio)))
+
+    ptotal += period
+    periods.append(period)
+
+    durs.append(HalfDuration*2.0)
+
+# magnitude, period, and duration require comparison to all their values
+# for proper priority assignment, so this is an addendum to account for that;
+# additionally, it calculates relative priorities for each component listed
+def priority():
+    global shallowmagmin    # Needed to modify global copy of shallowmagmin
+    for i in range(0, len(mags)):
+        P_mag.append(10.0**(-0.02*(mags[i] - shallowmagmin))) 
+
+        P_period.append(periods[i]/(ptotal/len(periods))) 
+
+        P_dur.append(0.25 + ((0.5*(durs[i] - min(durs)))/(max(durs) - min(durs)))) 
+
+    minmag = (10.0**(-0.02*(shallowmagmin - shallowmagmin)))
+    maxmag = (10.0**(-0.02*(7.438 - shallowmagmin)))
+
+    minper = 0.114018/(ptotal/len(periods))
+    maxper = 32.9719/(ptotal/len(periods))
+
+    mindur = 0.25 + ((0.5*(mindur - mindur)/(maxdur - mindur)))
+    maxdur = 0.25 + ((0.5*(maxdur - mindur)/(maxdur - mindur)))
+
+    minalt = 30.0
+    maxalt = 90.0
+
+
+    # magrange = max(P_mag) - minmag
+    # minalt = min(P_alt)
+    # altrange1 = max(P_alt) - minalt
+    # altrange2 = 1.25 - 0.75
+    # minper = min(P_period)
+    # periodrange = max(P_period) - minper
+    # mindur = min(P_dur)
+    # durrange1 = max(P_dur) - mindur
+    # durrange2 = 1.1 - 0.9
+
+    c_mag = math.log(1.5/0.5)/(math.log(maxmag/minmag))
+    c_alt = math.log(1.25/0.75)/(math.log(max(P_alt)/minalt))
+    c_per = math.log(1.5/0.5)/(math.log(maxper/minper))
+    c_dur = math.log(1.1/0.9)/(math.log(maxdur/mindur))
+
+    for i in range(0, len(mags)):
+        P_mag[i] = 0.5 * ((P_mag[i]/minmag)**c_mag)
+        P_alt[i] = 0.75 * ((P_alt[i]/minalt)**c_alt)
+        P_period[i] = 0.5 * ((P_period[i]/minper)**c_per)
+        P_dur[i] = 0.9 * ((P_dur[i]/mindur)**c_dur)
+
+        # P_mag[i] = (P_mag[i] - minmag)/magrange
+        # P_mag[i] = P_mag[i] + 0.5
+        # P_alt[i] = (P_alt[i] - minalt)/altrange1
+        # P_alt[i] = (P_alt[i] * altrange2) + 0.75
+        # P_period[i] = (P_period[i] - minper)/periodrange
+        # P_period[i] = P_period[i] + 0.5
+        # P_dur[i] = (P_dur[i] - mindur)/durrange1
+        # P_dur[i] = (P_dur[i] * durrange2) + 0.9
+
+    for i in range(0, len(P_mag)):
+        Prios.append(P_alt[i] * P_mag[i] * P_flag[i] * P_objprio[i] * P_period[i] * P_dur[i])
+    print(Prios)
+
 # year, month, day are the dates to start and stop the check on
 # RA and Dec are in degrees, period and HalfDuration are in days.
 # Epoch is a JulianDate.
-def FindVisibleTransits(yearstart, monthstart, daystart, yearstop, monthstop, daystop, RA, Dec, Period, Epoch, HalfDuration, obslat, obslongit, obstz, twialt, objalt, objname, objprio, objfutype):
+def FindVisibleTransits(yearstart, monthstart, daystart, yearstop, monthstop, daystop, RA, Dec, Period, Epoch, HalfDuration, obslat, obslongit, obstz, twialt, objalt, objname, objprio, objfutype, magv):
     # First generate a list of all transit start, stop, and midpoint times
     # Within the given date range.
     [jd1, jd2] = gettwilightJD(twialt, yearstart, monthstart, daystart, obslat, obslongit)
@@ -426,7 +531,8 @@ def FindVisibleTransits(yearstart, monthstart, daystart, yearstop, monthstop, da
             ltcent = "%02d:%02d" % (hr, mi)
             ltstop = "%02d:%02d" % (hrsto, misto)
             if objfutype == "pri" or objfutype == "sec":
-                transits.append(TransitEvent(objname, objprio, math.floor((jd - Epoch + HalfDuration)/Period), night, flag, jdstart, ltstart, altstart, jd, ltcent, altcent, jdstop, ltstop, altstop, moonsep, objfutype))
+                pre_priority(flag, Period, magv, altcent, objprio, HalfDuration)
+                transits.append(TransitEvent(objname, objprio, math.floor((jd - Epoch + HalfDuration)/Period), night, flag, jdstart, ltstart, altstart, jd, ltcent, altcent, jdstop, ltstop, altstop, moonsep, objfutype, magv))
             elif objfutype == "odd" or objfutype == "even":
                 objNtran = int(round((jd - Epoch)/Period)) % 2
                 if objNtran == 0 and objfutype == "even":
@@ -435,7 +541,8 @@ def FindVisibleTransits(yearstart, monthstart, daystart, yearstop, monthstop, da
                     priotoshow = objprio
                 else:
                     priotoshow = "..."
-                transits.append(TransitEvent(objname, priotoshow, math.floor((jd - Epoch + HalfDuration)/Period), night, flag, jdstart, ltstart, altstart, jd, ltcent, altcent, jdstop, ltstop, altstop, moonsep, objfutype))
+                pre_priority(flag, Period, magv, altcent, objprio, HalfDuration)
+                transits.append(TransitEvent(objname, priotoshow, math.floor((jd - Epoch + HalfDuration)/Period), night, flag, jdstart, ltstart, altstart, jd, ltcent, altcent, jdstop, ltstop, altstop, moonsep, objfutype, magv))
     return transits
 
 # Run a shell command
@@ -773,7 +880,7 @@ def QueryALLTEP():
             if str(f2[1]) == "None" or str(f2[2]) == "None" or str(f2[3]) == "None" or str(f2[4]) == "None" or str(f2[5]) == "None":
                 continue
             if str(f2[6]) == "None":
-                objects.append(Star(f2[0], "...", float(f2[1]), float(f2[2]), float(f2[3]), float(f2[4]), 0.5*float(f2[5]), "pri", 99.9)
+                objects.append(Star(f2[0], "...", float(f2[1]), float(f2[2]), float(f2[3]), float(f2[4]), 0.5*float(f2[5]), "pri", 99.9))
             else:
                 objects.append(Star(f2[0], "...", float(f2[1]), float(f2[2]), float(f2[3]), float(f2[4]), 0.5*float(f2[5]), "pri", float(f2[6])))
     return objects            
@@ -1112,9 +1219,10 @@ if allTEP == 1:
 
 alltransits = []
 for st in Objects:
-    alltransits.extend(FindVisibleTransits(yrstart, mostart, daystart, yrstop, mostop, daystop, st.RA, st.Dec, st.P, st.Epoch, st.HalfDuration, float(lat), float(lon), float(tz), float(TwiAlt), float(ObjAlt), st.obj, st.prio, st.futype))
+    alltransits.extend(FindVisibleTransits(yrstart, mostart, daystart, yrstop, mostop, daystop, st.RA, st.Dec, st.P, st.Epoch, st.HalfDuration, float(lat), float(lon), float(tz), float(TwiAlt), float(ObjAlt), st.obj, st.prio, st.futype, st.magv))
 
 alltransits_sort = sorted(alltransits, key=lambda trans: trans.jdcent)
 
-for trans in alltransits_sort:
-    trans.printvalues()
+priority()
+# for trans in alltransits_sort:
+#     trans.printvalues()
