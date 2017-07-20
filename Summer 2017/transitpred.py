@@ -323,20 +323,19 @@ mags = []
 durs = []
 
 shallowmagmin = 14.948
+shallowdurmin = 0.0128042
+shallowdurmax = 0.694507
 ptotal = 0.0
 
 #  assign each object a priority based on magnitude, orbital period,
 #  visibility flag, altitude at mid-transit, and number of subsequent
 #  Bieryla nights
 def pre_priority(flag, period, mag, altcent, objprio, HalfDuration):
-    P_alt.append(math.cos(math.radians(90 - altcent))) 
+    P_alt.append(abs(math.cos(math.radians(90 - altcent)))) # is the absolute value sign okay? 
 
-    # global shallowmagmin    # Needed to modify global copy of shallowmagmin
     global ptotal
 
-    # if mag > shallowmagmin:
-    #     shallowmagmin = mag
-    # mags.append(mag)
+    mags.append(mag)
 
     if flag == 'OIBEO':
         P_flag.append(1.0)
@@ -361,12 +360,15 @@ def pre_priority(flag, period, mag, altcent, objprio, HalfDuration):
 # additionally, it calculates relative priorities for each component listed
 def priority():
     global shallowmagmin    # Needed to modify global copy of shallowmagmin
+    global shallowdurmin
+    global shallowdurmax
+
     for i in range(0, len(mags)):
         P_mag.append(10.0**(-0.02*(mags[i] - shallowmagmin))) 
 
         P_period.append(periods[i]/(ptotal/len(periods))) 
 
-        P_dur.append(0.25 + ((0.5*(durs[i] - min(durs)))/(max(durs) - min(durs)))) 
+        P_dur.append(0.25 + ((0.5*(durs[i] - shallowdurmin))/(shallowdurmax - shallowdurmin))) 
 
     minmag = (10.0**(-0.02*(shallowmagmin - shallowmagmin)))
     maxmag = (10.0**(-0.02*(7.438 - shallowmagmin)))
@@ -374,12 +376,11 @@ def priority():
     minper = 0.114018/(ptotal/len(periods))
     maxper = 32.9719/(ptotal/len(periods))
 
-    mindur = 0.25 + ((0.5*(mindur - mindur)/(maxdur - mindur)))
-    maxdur = 0.25 + ((0.5*(maxdur - mindur)/(maxdur - mindur)))
+    minalt = math.cos(math.radians(90 - 30.0))
+    maxalt = math.cos(math.radians(90 - 90.0))
 
-    minalt = 30.0
-    maxalt = 90.0
-
+    mindur = 0.25 + ((0.5*(shallowdurmin - shallowdurmin))/(shallowdurmax - shallowdurmin))
+    maxdur = 0.25 + ((0.5*(shallowdurmax - shallowdurmin))/(shallowdurmax - shallowdurmin))
 
     # magrange = max(P_mag) - minmag
     # minalt = min(P_alt)
@@ -392,7 +393,7 @@ def priority():
     # durrange2 = 1.1 - 0.9
 
     c_mag = math.log(1.5/0.5)/(math.log(maxmag/minmag))
-    c_alt = math.log(1.25/0.75)/(math.log(max(P_alt)/minalt))
+    c_alt = math.log(1.25/0.75)/(math.log(maxalt/minalt))
     c_per = math.log(1.5/0.5)/(math.log(maxper/minper))
     c_dur = math.log(1.1/0.9)/(math.log(maxdur/mindur))
 
