@@ -44,7 +44,7 @@ def Usage():
 
 # Class defining a transit event
 class TransitEvent:
-    def __init__(self, obj, prio, n, night, symbol, jdstart, ltstart, altstart, jdcent, ltcent, altcent, jdstop, ltstop, altstop, moonsep, futype, magv):
+    def __init__(self, obj, prio, n, night, symbol, jdstart, ltstart, altstart, jdcent, ltcent, altcent, jdstop, ltstop, altstop, moonsep, futype, magv, starobj):
         self.obj = obj
         self.prio = prio
         self.n = n
@@ -62,13 +62,46 @@ class TransitEvent:
         self.moonsep = moonsep
         self.futype = futype
         self.magv = magv
+        self.eventPriority = 0.0
+        self.starobj = starobj
+    def priority():
+        global shallowmagmin    # Needed to modify global copy of shallowmagmin
+        global shallowdurmin
+        global shallowdurmax
+
+        P_alt = abs(math.cos(math.radians(90 - self.altcent)))
+        P_mag = 10.0**(-0.02*(self.magv - shallowmagmin))
+        P_objprio = 10.0/(2.0**int(self.starobj.prio))
+        P_period = self.starobj.P/(ptotal/len(periods)) #NEED ALL PERIODS FROM ALL EVENTS FOR THIS CALCULATION
+        P_dur = 0.25 + (0.5*(self.starobj.HalfDuration * 2) - shallowdurmin)/(shallowdurmax - shallowdurmin)
+        
+        minalt = math.cos(math.radians(90 - 30.0))
+        maxalt = math.cos(math.radians(90 - 90.0))
+        minmag = (10.0**(-0.02*(shallowmagmin - shallowmagmin)))
+        maxmag = (10.0**(-0.02*(7.438 - shallowmagmin)))
+        minper = 0.114018/(ptotal/len(periods))
+        maxper = 32.9719/(ptotal/len(periods))
+        mindur = 0.25 + ((0.5*(shallowdurmin - shallowdurmin))/(shallowdurmax - shallowdurmin))
+        maxdur = 0.25 + ((0.5*(shallowdurmax - shallowdurmin))/(shallowdurmax - shallowdurmin))
+
+        c_alt = math.log(1.25/0.75)/(math.log(maxalt/minalt))
+        c_mag = math.log(1.5/0.5)/(math.log(maxmag/minmag))
+        c_per = math.log(1.5/0.5)/(math.log(maxper/minper))
+        c_dur = math.log(1.1/0.9)/(math.log(maxdur/mindur))
+
+        P_mag = 0.5 * ((P_mag/minmag)**c_mag)
+        P_alt = 0.75 * ((P_alt/minalt)**c_alt)
+        P_period = 0.5 * ((P_period/minper)**c_per)
+        P_dur = 0.9 * ((P_dur/mindur)**c_dur)
+
+        Prios = P_alt * P_mag * P_flag * P_objprio * P_period * P_dur #NEED TO GET FLAG SOMEHOW
     def __repr__(self):
         return repr((self.obj, self.prio, self.n, self.night, self.symbol,
                      self.jdstart, self.ltstart, self.altstart, self.jdcent,
                      self.ltcent, self.altcent, self.jdstop, self.ltstop,
-                     self.altstop, self.moonsep, self.futype, self.magv))
+                     self.altstop, self.moonsep, self.futype, self.magv, self.eventPriority, self.starobj))
     def printvalues(self):
-        print "%s %s %d %s %5s %.17g %s %6.2f %.17g %s %6.2f %.17g %s %6.2f %7.2f %s %5g" % (self.obj, self.prio, self.n, self.night, self.symbol, self.jdstart, self.ltstart, self.altstart, self.jdcent, self.ltcent, self.altcent, self.jdstop, self.ltstop, self.altstop, self.moonsep, self.futype, self.magv)
+        print "%s %s %d %s %5s %.17g %s %6.2f %.17g %s %6.2f %.17g %s %6.2f %7.2f %s %5g %5g" % (self.obj, self.prio, self.n, self.night, self.symbol, self.jdstart, self.ltstart, self.altstart, self.jdcent, self.ltcent, self.altcent, self.jdstop, self.ltstop, self.altstop, self.moonsep, self.futype, self.magv, self.eventPriority)
 
 # Class storing the parameters of a transit candidate
 class Star:
@@ -81,7 +114,7 @@ class Star:
         self.Epoch = Epoch
         self.HalfDuration = HalfDuration
         self.futype = futype
-        self.magv = magv 
+        self.magv = magv
     def __repr__(self):
         return repr((self.obj, self.prio, self.RA, self.Dec, self.P,
                      self.Epoch, self.HalfDuration, self.futype, self.magv))
@@ -310,7 +343,7 @@ def gettwilightJD(alt, nightyr, nightmo, nightday, lat, longit):
     
     return [jdeve, jdmorn]
 
-P_alt =[]
+P_alt =[] #GET RID OF THESE THROUGH INCORPORATING THEM INTO THE TRANSITEVENT OBJECT
 P_mag = []
 P_flag = []
 P_objprio = []
@@ -382,16 +415,6 @@ def priority():
     mindur = 0.25 + ((0.5*(shallowdurmin - shallowdurmin))/(shallowdurmax - shallowdurmin))
     maxdur = 0.25 + ((0.5*(shallowdurmax - shallowdurmin))/(shallowdurmax - shallowdurmin))
 
-    # magrange = max(P_mag) - minmag
-    # minalt = min(P_alt)
-    # altrange1 = max(P_alt) - minalt
-    # altrange2 = 1.25 - 0.75
-    # minper = min(P_period)
-    # periodrange = max(P_period) - minper
-    # mindur = min(P_dur)
-    # durrange1 = max(P_dur) - mindur
-    # durrange2 = 1.1 - 0.9
-
     c_mag = math.log(1.5/0.5)/(math.log(maxmag/minmag))
     c_alt = math.log(1.25/0.75)/(math.log(maxalt/minalt))
     c_per = math.log(1.5/0.5)/(math.log(maxper/minper))
@@ -403,23 +426,13 @@ def priority():
         P_period[i] = 0.5 * ((P_period[i]/minper)**c_per)
         P_dur[i] = 0.9 * ((P_dur[i]/mindur)**c_dur)
 
-        # P_mag[i] = (P_mag[i] - minmag)/magrange
-        # P_mag[i] = P_mag[i] + 0.5
-        # P_alt[i] = (P_alt[i] - minalt)/altrange1
-        # P_alt[i] = (P_alt[i] * altrange2) + 0.75
-        # P_period[i] = (P_period[i] - minper)/periodrange
-        # P_period[i] = P_period[i] + 0.5
-        # P_dur[i] = (P_dur[i] - mindur)/durrange1
-        # P_dur[i] = (P_dur[i] * durrange2) + 0.9
-
     for i in range(0, len(P_mag)):
         Prios.append(P_alt[i] * P_mag[i] * P_flag[i] * P_objprio[i] * P_period[i] * P_dur[i])
-    print(Prios)
 
 # year, month, day are the dates to start and stop the check on
 # RA and Dec are in degrees, period and HalfDuration are in days.
 # Epoch is a JulianDate.
-def FindVisibleTransits(yearstart, monthstart, daystart, yearstop, monthstop, daystop, RA, Dec, Period, Epoch, HalfDuration, obslat, obslongit, obstz, twialt, objalt, objname, objprio, objfutype, magv):
+def FindVisibleTransits(yearstart, monthstart, daystart, yearstop, monthstop, daystop, RA, Dec, Period, Epoch, HalfDuration, obslat, obslongit, obstz, twialt, objalt, objname, objprio, objfutype, magv, starobj):
     # First generate a list of all transit start, stop, and midpoint times
     # Within the given date range.
     [jd1, jd2] = gettwilightJD(twialt, yearstart, monthstart, daystart, obslat, obslongit)
@@ -1222,8 +1235,11 @@ alltransits = []
 for st in Objects:
     alltransits.extend(FindVisibleTransits(yrstart, mostart, daystart, yrstop, mostop, daystop, st.RA, st.Dec, st.P, st.Epoch, st.HalfDuration, float(lat), float(lon), float(tz), float(TwiAlt), float(ObjAlt), st.obj, st.prio, st.futype, st.magv))
 
+priority()
+for i in range(0, len(alltransits)):
+    alltransits[i].eventPriority = Prios[i]
+
 alltransits_sort = sorted(alltransits, key=lambda trans: trans.jdcent)
 
-priority()
-# for trans in alltransits_sort:
-#     trans.printvalues()
+for trans in alltransits_sort:
+    trans.printvalues()
