@@ -113,11 +113,6 @@ class TransitEvent:
         P_dur = 0.9 * ((P_dur/mindur)**c_dur)
 
         self.eventPriority = P_alt * P_mag * P_flag * P_objprio * P_period * P_dur
-    # get_period function allows the tracking of ptotal and count, which are used in priority()
-    # ptotal and count are incremented when the transitevents are created
-    # def get_period(per, count):
-    #     self.ptotal = per
-    #     self.count = count
     def __repr__(self):
         return repr((self.obj, self.prio, self.n, self.night, self.symbol,
                      self.jdstart, self.ltstart, self.altstart, self.jdcent,
@@ -366,6 +361,52 @@ def gettwilightJD(alt, nightyr, nightmo, nightday, lat, longit):
     
     return [jdeve, jdmorn]
 
+# verifies valid viewing times, assigns meta-priority based on 
+# changing flags and amount of non-event viewing time
+def TrialPriority(events, startstopobs, JDevening, JDmorning, jdguess, jdobstart, jdobstop):
+    global lat # or place as arguments to the function
+    global lon
+    # starts = []
+    # stops = []
+    # for i in range(0, len(startstopobs)):
+    #     if (i % 1) == 0:
+    #         starts.append(startstopobs[i])
+    #     else: 
+    #         stops.append(startstopobs[i])
+    for i in range(0, len(events)):
+        if events[i].jdstart > events[i].jdstop or events[i].jdstart < JDevening or events[i].jdstop > JDmorning:
+            return 0
+        elif i != 0:
+            if events[i].jdstart < events[i-1].jdstop:
+                return 0
+        lst = LST(jdguess, lon)
+        if getalt(events[i].starobj.RA, events[i].starobj.Dec, lst, lat) < 30:
+            return 0
+    # for i in range(0, len(starts)):
+    #     if starts[i] > stops[i] or starts[i] < JDevening or stops[i] > JDmorning or starts[i] < stops[i-1]:
+    #         return 0
+    #     lst = LST(jdguess, lon)
+    #     if getalt(events[i].starobj.RA, events[i].starobj.Dec, lst, lat) < 30:
+    #         return 0
+    for event in events:
+        # observation should start 30 minutes before event
+        if event.symbol[0] == 'O' and jdobsstart >= (event.jdstart - 0.0208333):
+            event.symbol = event.symbol.replace('O', '-', 1)
+        # observation should start and not stop before the ingress
+        if event.symbol[1] == 'I' and (jdobsstart >= event.jdstart or jdobstop <= event.jdstart):
+            event.symbol = event.symbol.replace('I', '-')
+        # observation should start and not stop before the event center
+        if event.symbol[2] == 'B' and (jdobsstart >= event.jdcent or jdobstop <= event.jdcent):
+            event.symbol = event.symbol.replace('B', '-')
+        # observation should start and not stop before the egress
+        if event.symbol[3] == 'E' and (jdobsstart >= event.jdstop or jdobstop <= event.jdstop):
+            event.symbol = event.symbol.replace('E', '-')
+        # observation should not stop until 30 minutes after the event 
+        if event.symbol[4] == 'O' and jdobstop <= (event.jdstop + 0.0208333)
+            event.symbol = event.symbol.replace('O', '-')
+
+    
+    
 # year, month, day are the dates to start and stop the check on
 # RA and Dec are in degrees, period and HalfDuration are in days.
 # Epoch is a JulianDate.
@@ -409,8 +450,6 @@ def FindVisibleTransits(yearstart, monthstart, daystart, yearstop, monthstop, da
     # Now for each JD check if the object is above the horizon
     # and the sun is below the threshold for either the ingress,
     # midpoint, or egress
-    ptotal = 0.0
-    count = 0.0
     for jd in jdcent:
         jdOOTstart = jd - HalfDuration - 0.0208333
         jdstart = jd - HalfDuration
@@ -484,8 +523,6 @@ def FindVisibleTransits(yearstart, monthstart, daystart, yearstop, monthstop, da
             ltcent = "%02d:%02d" % (hr, mi)
             ltstop = "%02d:%02d" % (hrsto, misto)
             if objfutype == "pri" or objfutype == "sec":
-                # ptotal += Period
-                # count += 1
                 transits.append(TransitEvent(objname, objprio, math.floor((jd - Epoch + HalfDuration)/Period), night, flag, jdstart, ltstart, altstart, jd, ltcent, altcent, jdstop, ltstop, altstop, moonsep, objfutype, magv, starobj))
             elif objfutype == "odd" or objfutype == "even":
                 objNtran = int(round((jd - Epoch)/Period)) % 2
@@ -495,11 +532,8 @@ def FindVisibleTransits(yearstart, monthstart, daystart, yearstop, monthstop, da
                     priotoshow = objprio
                 else:
                     priotoshow = "..."
-                # ptotal += Period
-                # count += 1
                 transits.append(TransitEvent(objname, priotoshow, math.floor((jd - Epoch + HalfDuration)/Period), night, flag, jdstart, ltstart, altstart, jd, ltcent, altcent, jdstop, ltstop, altstop, moonsep, objfutype, magv, starobj))
     for obj in transits:
-        # obj.get_period(ptotal, count)
         obj.priority()
     return transits
 
