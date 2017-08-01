@@ -363,16 +363,21 @@ def gettwilightJD(alt, nightyr, nightmo, nightday, lat, longit):
 
 # verifies valid viewing times, assigns meta-priority based on 
 # changing flags and amount of non-event viewing time
-def TrialPriority(events, startstopobs, JDevening, JDmorning, jdguess, jdobstart, jdobstop):
-    global lat # or place as arguments to the function
-    global lon
-    # starts = []
-    # stops = []
-    # for i in range(0, len(startstopobs)):
-    #     if (i % 1) == 0:
-    #         starts.append(startstopobs[i])
-    #     else: 
-    #         stops.append(startstopobs[i])
+def TrialPriority(events, startstopobs, JDevening, JDmorning, jdguess, lat, lon):
+    trialprios = []
+    starts = []
+    stops = []
+    for i in range(0, len(startstopobs)):
+        if (i % 1) == 0:
+            starts.append(startstopobs[i])
+        else: 
+            stops.append(startstopobs[i])
+    # for i in range(0, len(starts)):
+    #     if starts[i] > stops[i] or starts[i] < JDevening or stops[i] > JDmorning or starts[i] < stops[i-1]:
+    #         return 0
+    #     lst = LST(jdguess, lon)
+    #     if getalt(events[i].starobj.RA, events[i].starobj.Dec, lst, lat) < 30:
+    #         return 0
     for i in range(0, len(events)):
         if events[i].jdstart > events[i].jdstop or events[i].jdstart < JDevening or events[i].jdstop > JDmorning:
             return 0
@@ -382,30 +387,39 @@ def TrialPriority(events, startstopobs, JDevening, JDmorning, jdguess, jdobstart
         lst = LST(jdguess, lon)
         if getalt(events[i].starobj.RA, events[i].starobj.Dec, lst, lat) < 30:
             return 0
-    # for i in range(0, len(starts)):
-    #     if starts[i] > stops[i] or starts[i] < JDevening or stops[i] > JDmorning or starts[i] < stops[i-1]:
-    #         return 0
-    #     lst = LST(jdguess, lon)
-    #     if getalt(events[i].starobj.RA, events[i].starobj.Dec, lst, lat) < 30:
-    #         return 0
-    for event in events:
+    for i in range (0, len(events)):
         # observation should start 30 minutes before event
-        if event.symbol[0] == 'O' and jdobsstart >= (event.jdstart - 0.0208333):
-            event.symbol = event.symbol.replace('O', '-', 1)
+        if events[i].symbol[0] == 'O' and starts[i] >= (events[i].jdstart - 0.0208333):
+            events[i].symbol = events[i].symbol.replace('O', '-', 1)
         # observation should start and not stop before the ingress
-        if event.symbol[1] == 'I' and (jdobsstart >= event.jdstart or jdobstop <= event.jdstart):
-            event.symbol = event.symbol.replace('I', '-')
+        if events[i].symbol[1] == 'I' and (starts[i] >= events[i].jdstart or stops[i] <= events[i].jdstart):
+            events[i].symbol = events[i].symbol.replace('I', '-')
         # observation should start and not stop before the event center
-        if event.symbol[2] == 'B' and (jdobsstart >= event.jdcent or jdobstop <= event.jdcent):
-            event.symbol = event.symbol.replace('B', '-')
+        if events[i].symbol[2] == 'B' and (starts[i] >= events[i].jdcent or stops[i] <= events[i].jdcent):
+            events[i].symbol = events[i].symbol.replace('B', '-')
         # observation should start and not stop before the egress
-        if event.symbol[3] == 'E' and (jdobsstart >= event.jdstop or jdobstop <= event.jdstop):
-            event.symbol = event.symbol.replace('E', '-')
+        if events[i].symbol[3] == 'E' and (starts[i] >= events[i].jdstop or stops[i] <= events[i].jdstop):
+            events[i].symbol = events[i].symbol.replace('E', '-')
         # observation should not stop until 30 minutes after the event 
-        if event.symbol[4] == 'O' and jdobstop <= (event.jdstop + 0.0208333)
-            event.symbol = event.symbol.replace('O', '-')
+        if events[i].symbol[4] == 'O' and stops[i] <= (events[i].jdstop + 0.0208333)
+            events[i].symbol = events[i].symbol.replace('O', '-')
 
-    
+        P_extratime = 0.0
+        # extra time evaluation for time before ingress
+        if events[i].symbol[0] == 'O' and events[i].symbol[1] == 'I':
+            P_extratime = P_extratime + 0.332*log10((events[i].jdstart - starts[i])/(0.020833)) + 1
+        # extra time evaluation for OI--- to OIB--
+        if events[i].symbol == 'OI---':
+            P_extratime = P_extratime + ((stops[i] - events[i].jdstart)/(events[i].jdcent - events[i].jdstart))*((0.5/0.1) - 1) + 1
+        # extra time evaluation for OIB-- to OIBE-
+        if events[i].symbol == 'OIB--':
+            P_extratime = P_extratime + ((stops[i] - events[i].jdcent)/(events[i].jdstop - events[i].jdcent))*((.75/0.5) - 1) + 1
+        # extra time evaluation for OIBE- to OIBEO
+        if events[i].symbol == 'OIBE-':
+            P_extratime = P_extratime + ((stops[i] - events[i].jdstop)/(0.0208333))*((1.0/0.75) - 1) + 1
+        # extra time evaluation for time beyond egress
+        if events[i].symbol[3] == 'E' and events[i].symbol[4] == 'O':
+            P_extratime = P_extratime + 0.332*log10((stops[i] - events[i].jdstop)/(0.020833)) + 1    
     
 # year, month, day are the dates to start and stop the check on
 # RA and Dec are in degrees, period and HalfDuration are in days.
